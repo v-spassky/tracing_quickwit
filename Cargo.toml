@@ -1,0 +1,32 @@
+[package]
+name = "tracing_quickwit"
+description = "A `tracing_subscriber` layer for sending tracing events to Quickwit."
+version = "0.1.0"
+edition = "2021"
+authors = ["Vasiliy Spassky <spassky99@gmail.com>"]
+readme = "README.md"
+documentation = "https://github.com/v-spassky/tracing_quickwit"
+homepage = "https://github.com/v-spassky/tracing_quickwit"
+repository = "https://github.com/v-spassky/tracing_quickwit"
+license = "MIT"
+keywords = [
+    "quickwit",
+    "tracing",
+    "subscriber",
+    "observability",
+    "logging",
+    "tracing",
+]
+categories = [
+    "development-tools::debugging",
+]
+
+[dependencies]
+reqwest = "0.12.9"
+serde = { version = "1.0.215", features = ["serde_derive"] }
+serde_json = "1.0.133"
+tokio = "1.41.1"
+tracing = "0.1.40"
+tracing-core = "0.1.33"
+tracing-subscriber = "0.3.18"
+url = "2.5.2"

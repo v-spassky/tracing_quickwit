@@ -45,12 +45,7 @@ impl QuickwitLoggingLayerBuilder {
         self
     }
 
-    pub fn build(
-        self,
-    ) -> (
-        QuickwitLoggingLayer,
-        impl Future<Output = impl Send + 'static> + Send + 'static,
-    ) {
+    pub fn build(self) -> (QuickwitLoggingLayer, impl Future<Output = impl Send> + Send) {
         let http_client = Client::new();
         // TODO: Capacity should be configurable.
         let (sender, mut receiver) = mpsc::channel(500);

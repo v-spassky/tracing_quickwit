@@ -38,10 +38,8 @@ impl QuickwitLoggingLayerBuilder {
         self
     }
 
-    // TODO: Figure out a way to accept hardcoded `i32` if it is valid `usize` (`i32` isn't convertible to `usize` so
-    // the client can't write `.with_batch_size(100)`.
-    pub fn with_batch_size(mut self, batch_size: impl Into<usize>) -> Self {
-        self.batch_size = batch_size.into();
+    pub fn with_batch_size(mut self, batch_size: usize) -> Self {
+        self.batch_size = batch_size;
         self
     }
 

@@ -1,4 +1,4 @@
-use tracing::field::{Field, Visit};
+use tracing_core::field::{Field, Visit};
 
 pub(crate) struct TargetFieldVisitor {
     pub(crate) target_field: String,

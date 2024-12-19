@@ -8,6 +8,7 @@ use tracing_subscriber::layer::Context as TracingContext;
 use tracing_subscriber::Layer;
 
 pub struct QuickwitLoggingLayer {
+    // TODO: Maybe use single producer?
     sender: mpsc::Sender<QuickwitLogMessage>,
     target_field: String,
     // TODO: Consider `&' static` instead of `String`.

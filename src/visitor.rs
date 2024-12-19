@@ -38,6 +38,7 @@ impl LogVisitor {
 
 impl Visit for LogVisitor {
     // TODO: Implement all methods defined in `Visit`.
+    // TODO: Should we serialize numbers into strings?
 
     fn record_str(&mut self, field: &Field, value: &str) {
         self.log.insert(field.name().to_string(), value.into());

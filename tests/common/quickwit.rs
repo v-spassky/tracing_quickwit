@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::{oneshot, Notify};
 
 #[derive(Debug, Default)]
-pub(crate) struct TestHttpServer {
+pub struct TestHttpServer {
     events: Arc<Mutex<Vec<String>>>,
     ready: Arc<Notify>,
     processed_all: Arc<Notify>,
@@ -12,7 +12,7 @@ pub(crate) struct TestHttpServer {
 }
 
 impl TestHttpServer {
-    pub(crate) fn new(port: u16, expected_events_count: usize) -> Self {
+    pub fn new(port: u16, expected_events_count: usize) -> Self {
         let requests = Arc::new(Mutex::new(Vec::new()));
         let requests_clone = Arc::clone(&requests);
         let ready = Arc::new(Notify::new());
@@ -66,16 +66,16 @@ impl TestHttpServer {
         }
     }
 
-    pub(crate) async fn wait_until_ready(&self) {
+    pub async fn wait_until_ready(&self) {
         self.ready.notified().await;
     }
 
-    pub(crate) async fn wait_until_processed_expected_events_count(&self) {
+    pub async fn wait_until_processed_expected_events_count(&self) {
         // TODO: Add a timeout because in some errorneous cases it will never return.
         self.processed_all.notified().await;
     }
 
-    pub(crate) fn accepted_requests(&self) -> Vec<serde_json::Value> {
+    pub fn accepted_requests(&self) -> Vec<serde_json::Value> {
         self.events
             .lock()
             .expect("Failed to acquire a lock on `TestHttpServer.events`!")

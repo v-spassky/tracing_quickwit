@@ -8,12 +8,23 @@ use std::future::Future;
 use tokio::sync::mpsc;
 use url::Url;
 
+#[cfg(feature = "testing-extras")]
+use std::sync::Arc;
+#[cfg(feature = "testing-extras")]
+use tokio::sync::Notify;
+
 pub struct QuickwitLoggingLayerBuilder {
     quickwit_url: Url,
     target_field: String,
     // TODO: Consider `&'static str`.
     field_to_index: HashMap<String, String>,
     batch_size: usize,
+    on_index_missing: Box<dyn Fn() + Send + Sync + 'static>,
+    on_ingest_failed: Box<dyn Fn(reqwest::Error) + Send + Sync + 'static>,
+    #[cfg(feature = "testing-extras")]
+    expected_emitted_events_count: usize,
+    #[cfg(feature = "testing-extras")]
+    emitted_all: Arc<Notify>,
 }
 
 impl QuickwitLoggingLayerBuilder {
@@ -24,6 +35,12 @@ impl QuickwitLoggingLayerBuilder {
             target_field: String::new(),
             field_to_index: HashMap::new(),
             batch_size: DEFAULT_LOGGING_BUFFER_SIZE,
+            on_index_missing: Box::new(|| ()),
+            on_ingest_failed: Box::new(|_err| ()),
+            #[cfg(feature = "testing-extras")]
+            expected_emitted_events_count: 0,
+            #[cfg(feature = "testing-extras")]
+            emitted_all: Arc::new(Notify::new()),
         }
     }
 
@@ -43,6 +60,31 @@ impl QuickwitLoggingLayerBuilder {
         self
     }
 
+    pub fn on_index_missing(mut self, callback: impl Fn() + Send + Sync + 'static) -> Self {
+        self.on_index_missing = Box::new(callback);
+        self
+    }
+
+    pub fn on_ingest_failed(
+        mut self,
+        callback: impl Fn(reqwest::Error) + Send + Sync + 'static,
+    ) -> Self {
+        self.on_ingest_failed = Box::new(callback);
+        self
+    }
+
+    #[cfg(feature = "testing-extras")]
+    pub fn with_expected_emitted_events_count(mut self, count: usize) -> Self {
+        self.expected_emitted_events_count = count;
+        self
+    }
+
+    #[cfg(feature = "testing-extras")]
+    pub fn on_emitted_all(mut self, notifier: Arc<Notify>) -> Self {
+        self.emitted_all = notifier;
+        self
+    }
+
     pub fn build(self) -> (QuickwitLoggingLayer, impl Future<Output = impl Send> + Send) {
         let http_client = Client::new();
         // TODO: Capacity should be configurable.
@@ -54,21 +96,27 @@ impl QuickwitLoggingLayerBuilder {
                 buffers.insert(index_name, Vec::with_capacity(self.batch_size));
             }
             while let Some(QuickwitLogMessage { index_id, log }) = receiver.recv().await {
-                // TODO: This `.unwrap()` is bad (can break the whole task).
-                let buffer = buffers.get_mut(&index_id).unwrap();
-                (*buffer).push(log);
+                let buffer = match buffers.get_mut(&index_id) {
+                    Some(buffer) => buffer,
+                    None => buffers
+                        .entry(index_id.clone())
+                        .or_insert(Vec::with_capacity(self.batch_size)),
+                };
+                buffer.push(log);
                 if buffer.len() >= self.batch_size {
                     // TODO: Reuse `ndjson_body`.
                     let mut ndjson_body = Vec::new();
                     for log in buffer.iter() {
                         ndjson::serialize(&mut ndjson_body, log).unwrap();
                     }
-                    // TODO: Provide a user-specified `on_error()` callback here.
-                    let _response = http_client
+                    let response = http_client
                         .post(format!("{}api/v1/{}/ingest", self.quickwit_url, index_id))
                         .body(ndjson_body)
                         .send()
                         .await;
+                    if let Err(err) = response {
+                        (self.on_ingest_failed)(err);
+                    }
                     buffer.clear();
                 }
             }
@@ -85,7 +133,16 @@ impl QuickwitLoggingLayerBuilder {
                 buffer.clear();
             }
         };
-        let layer = QuickwitLoggingLayer::new(sender, self.target_field, self.field_to_index);
+        let layer = QuickwitLoggingLayer::new(
+            sender,
+            self.target_field,
+            self.field_to_index,
+            self.on_index_missing,
+            #[cfg(feature = "testing-extras")]
+            self.expected_emitted_events_count,
+            #[cfg(feature = "testing-extras")]
+            self.emitted_all,
+        );
         (layer, background_task)
     }
 }

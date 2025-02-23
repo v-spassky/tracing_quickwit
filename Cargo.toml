@@ -34,3 +34,6 @@ url = "2.5.2"
 [dev-dependencies]
 tokio = { version = "1.41.1", features = ["rt", "macros"] }
 hyper = { version = "0.14", features = ["http1", "server", "tcp"] }
+
+[features]
+testing-extras = []
